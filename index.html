@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スライムクリッカー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 10px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2196F3;
+            margin-bottom: 20px;
+            font-size: clamp(24px, 5vw, 36px);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .stats {
+            text-align: center;
+            width: 100%;
+        }
+
+        .slime-count {
+            font-size: clamp(32px, 6vw, 48px);
+            font-weight: bold;
+            color: #2196F3;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .per-second {
+            font-size: clamp(16px, 3vw, 20px);
+            color: #666;
+        }
+
+        .slime-container {
+            position: relative;
+            width: clamp(200px, 40vw, 300px);
+            height: clamp(200px, 40vw, 300px);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .slime-container:active {
+            transform: scale(0.95);
+        }
+
+        .slime {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #5eb3ff 0%, #2196F3 70%, #1976D2 100%);
+            border-radius: 50%;
+            position: relative;
+            animation: slimeBounce 2s ease-in-out infinite;
+            box-shadow: 
+                0 15px 40px rgba(33, 150, 243, 0.5),
+                inset 0 -20px 30px rgba(33, 150, 243, 0.2);
+        }
+
+        @keyframes slimeBounce {
+            0%, 100% { transform: translateY(0) scaleY(1) scaleX(1); }
+            50% { transform: translateY(-10px) scaleY(0.93) scaleX(1.05); }
+        }
+
+        .slime::before {
+            display: none;
+        }
+
+        .slime .eye {
+            position: absolute;
+            width: 8%;
+            height: 8%;
+            background: #2d2d2d;
+            border-radius: 50%;
+            top: 38%;
+        }
+
+        .slime .eye.left { left: 32%; }
+        .slime .eye.right { right: 32%; }
+
+        .slime .mouth {
+            position: absolute;
+            width: 2px;
+            height: 15%;
+            background: #2d2d2d;
+            border-radius: 2px;
+            bottom: 35%;
+            left: 49%;
+            transform: rotate(90deg);
+        }
+
+        .slime .blush {
+            display: none;
+        }
+
+        .click-effect {
+            position: absolute;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196F3;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px);
+            }
+        }
+
+        .upgrades {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            pointer-events: auto;
+        }
+
+        .upgrade-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        .upgrade-item:hover:not(.disabled) {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .upgrade-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .upgrade-name {
+            font-weight: bold;
+            font-size: clamp(14px, 2.5vw, 16px);
+            margin-bottom: 5px;
+        }
+
+        .upgrade-effect {
+            font-size: clamp(12px, 2vw, 14px);
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .upgrade-cost {
+            font-size: clamp(12px, 2vw, 14px);
+            opacity: 0.9;
+        }
+
+        .upgrade-count {
+            font-size: clamp(12px, 2vw, 14px);
+            margin-top: 5px;
+            color: #ffe66d;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .upgrades {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 10px;
+            }
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #2196F3;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 1s ease-out forwards;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(0);
+            }
+        }
+
+        @keyframes metalShine {
+            0%, 100% {
+                filter: brightness(1);
+            }
+            50% {
+                filter: brightness(1.5);
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-50px);
+            }
+        }
+
+        @keyframes upgradePopup {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(0.95);
+            }
+            85% {
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔵 スライムクリッカー 🔵</h1>
+        
+        <div class="game-area">
+            <div class="stats">
+                <div class="slime-count" id="slimeCount">0 スライム</div>
+                <div class="per-second" id="perSecond">毎秒 0 スライム</div>
+            </div>
+
+            <div class="slime-container" id="slimeContainer">
+                <div class="slime">
+                    <div class="eye left"></div>
+                    <div class="eye right"></div>
+                    <div class="blush left"></div>
+                    <div class="blush right"></div>
+                    <div class="mouth"></div>
+                </div>
+            </div>
+
+            <div class="upgrades" id="upgrades"></div>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for sound effects and BGM
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let bgmOscillator = null;
+        let bgmGain = null;
+        let isBGMPlaying = false;
+
+        function startBGM() {
+            if (isBGMPlaying || !audioContext) return;
+            
+            // Create a simple melody loop
+            const notes = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33]; // C5, D5, E5, G5, E5, D5
+            let currentNote = 0;
+            
+            function playNextNote() {
+                if (!isBGMPlaying) return;
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                
+                oscillator.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = notes[currentNote];
+                oscillator.type = 'sine';
+                filter.type = 'lowpass';
+                filter.frequency.value = 2000;
+                
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.05, audioContext.currentTime + 0.1);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+                
+                currentNote = (currentNote + 1) % notes.length;
+                setTimeout(playNextNote, 500);
+            }
+            
+            isBGMPlaying = true;
+            playNextNote();
+        }
+
+        function playClickSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        function playUpgradeSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.2);
+            oscillator.type = 'triangle';
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+
+        // Game State
+        let slimes = 0;
+        let clickPower = 1;
+        let slimesPerSecond = 0;
+        let isMetalSlime = false;
+        let metalSlimeTimer = null;
+        let permanentMetalSlime = false;
+
+        const upgrades = [
+            { name: 'スライム学', baseCost: 10, count: 0, sps: 1, clickBonus: 0, icon: '', type: 'auto' },
+            { name: 'スライム棒', baseCost: 50, count: 0, sps: 0, clickBonus: 1, icon: '', type: 'click' },
+            { name: 'スライム研究', baseCost: 500, count: 0, sps: 50, clickBonus: 0, icon: '', type: 'auto' },
+            { name: 'スライムハンマー', baseCost: 3000, count: 0, sps: 0, clickBonus: 25, icon: '', type: 'click' },
+            { name: 'スライム工場', baseCost: 20000, count: 0, sps: 1500, clickBonus: 0, icon: '', type: 'auto' },
+            { name: 'スライムマスター', baseCost: 100000, count: 0, sps: 0, clickBonus: 1000, icon: '', type: 'click' },
+            { name: 'スライム召喚', baseCost: 1000000, count: 0, sps: 35000, clickBonus: 0, icon: '', type: 'auto' },
+            { name: 'スライムの真髄', baseCost: 5000000, count: 0, sps: 0, clickBonus: 0, icon: '', type: 'boost', revealed: false },
+            { name: 'スライムの境地', baseCost: 5000000, count: 0, sps: 0, clickBonus: 0, icon: '', type: 'metal_boost', revealed: false },
+            { name: 'スライム国家', baseCost: 30000000, count: 0, sps: 500000, clickBonus: 15000, icon: '', type: 'both', revealed: false },
+            { name: 'スライム神殿', baseCost: 99999999, count: 0, sps: 0, clickBonus: 0, icon: '', type: 'facility_boost', revealed: false },
+            { name: 'スライム銀河', baseCost: 999999999, count: 0, sps: 0, clickBonus: 0, icon: '', type: 'metal_effect_boost', revealed: false },
+            { name: '無限スライム', baseCost: 99999999999, count: 0, sps: 9999999, clickBonus: 9999999, icon: '', type: 'both', revealed: false },
+            { name: '世界を救う', baseCost: 1e+68, count: 0, sps: 1, clickBonus: 0, icon: '', type: 'auto', revealed: false }
+        ];
+        
+        let metalSpawnChance = 0.07; // 7%
+        let metalDuration = 7000; // 7 seconds
+        let totalConsumedSlimes = 0;
+        let facilityBonus = 1; // For 神殿 bonus
+        let metalBaseEffect = 5; // Base metal effect (5x)
+        let metalBonusEffect = 0; // Bonus from 銀河 (starts at 0, +10 per purchase)
+
+        // Metal Slime Functions
+        function spawnMetalSlime() {
+            if (isMetalSlime || permanentMetalSlime) return;
+            
+            isMetalSlime = true;
+            const slimeElement = document.querySelector('.slime');
+            slimeElement.style.background = 'linear-gradient(180deg, #E8E8E8 0%, #C0C0C0 50%, #A8A8A8 100%)';
+            slimeElement.style.boxShadow = '0 15px 40px rgba(192, 192, 192, 0.8), inset 0 -20px 30px rgba(169, 169, 169, 0.5), 0 0 50px rgba(211, 211, 211, 0.8)';
+            slimeElement.style.animation = 'slimeBounce 0.5s ease-in-out infinite, metalShine 1s ease-in-out infinite';
+            
+            // Play special sound
+            playMetalSound();
+            
+            // Disappear after variable duration
+            metalSlimeTimer = setTimeout(() => {
+                resetToNormalSlime();
+            }, metalDuration);
+        }
+
+        function resetToNormalSlime() {
+            if (!isMetalSlime || permanentMetalSlime) return;
+            
+            isMetalSlime = false;
+            const slimeElement = document.querySelector('.slime');
+            slimeElement.style.background = 'linear-gradient(180deg, #5eb3ff 0%, #2196F3 70%, #1976D2 100%)';
+            slimeElement.style.boxShadow = '0 15px 40px rgba(33, 150, 243, 0.5), inset 0 -20px 30px rgba(33, 150, 243, 0.2)';
+            slimeElement.style.animation = 'slimeBounce 2s ease-in-out infinite';
+            
+            if (metalSlimeTimer) {
+                clearTimeout(metalSlimeTimer);
+                metalSlimeTimer = null;
+            }
+        }
+
+        function playMetalSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1600, audioContext.currentTime + 0.2);
+            oscillator.type = 'square';
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+
+        // Check for metal slime spawn every few seconds
+        function checkMetalSlimeSpawn() {
+            if (!isMetalSlime && !permanentMetalSlime && Math.random() < metalSpawnChance) { // 7% chance
+                spawnMetalSlime();
+            }
+        }
+
+        setInterval(checkMetalSlimeSpawn, 3000); // Check every 3 seconds
+
+        // Initialize
+        function init() {
+            const upgradesContainer = document.getElementById('upgrades');
+            upgrades.forEach((upgrade, index) => {
+                const div = document.createElement('div');
+                div.className = 'upgrade-item disabled';
+                div.id = `upgrade-${index}`;
+                
+                let displayName = upgrade.name;
+                let effectText = '';
+                
+                // Only specific mystery types with revealed=false should be hidden
+                const isMysteryType = upgrade.type === 'boost' || upgrade.type === 'metal_boost' || 
+                                     upgrade.type === 'facility_boost' || upgrade.type === 'metal_effect_boost' || 
+                                     upgrade.type === 'both' || (upgrade.type === 'auto' && upgrade.baseCost >= 1e+60);
+                const shouldHide = isMysteryType && upgrade.hasOwnProperty('revealed') && !upgrade.revealed;
+                
+                if (shouldHide) {
+                    displayName = '？？？';
+                    effectText = '？？？';
+                } else if (upgrade.type === 'boost' && upgrade.revealed) {
+                    effectText = '毎秒&クリック×1.2';
+                } else if (upgrade.type === 'metal_boost' && upgrade.revealed) {
+                    effectText = 'メタル確率+1%';
+                } else if (upgrade.type === 'facility_boost' && upgrade.revealed) {
+                    effectText = '全施設の効果+100%';
+                } else if (upgrade.type === 'metal_effect_boost' && upgrade.revealed) {
+                    effectText = 'メタル効果+1000%';
+                } else if (upgrade.type === 'both' && upgrade.revealed) {
+                    effectText = `毎秒 +${upgrade.sps.toLocaleString()} クリック +${upgrade.clickBonus.toLocaleString()}`;
+                } else if (upgrade.type === 'auto') {
+                    // Special text for 世界を救う
+                    if (upgrade.baseCost >= 1e+60) {
+                        effectText = 'あなたはスライムの英雄となる';
+                    } else {
+                        effectText = `毎秒 +${upgrade.sps}`;
+                    }
+                } else if (upgrade.type === 'click') {
+                    effectText = `クリック +${upgrade.clickBonus}`;
+                }
+                
+                div.innerHTML = `
+                    <div class="upgrade-name">${displayName}</div>
+                    <div class="upgrade-effect">${effectText}</div>
+                    <div class="upgrade-cost">コスト: <span id="cost-${index}">${upgrade.baseCost}</span></div>
+                    <div class="upgrade-count">所持: <span id="count-${index}">0</span></div>
+                `;
+                div.addEventListener('click', (e) => {
+                    buyUpgrade(index, 1);
+                });
+                div.addEventListener('touchstart', (e) => {
+                    // Only prevent default if it's a tap, not a scroll
+                    const touch = e.touches[0];
+                    div.dataset.startY = touch.clientY;
+                    div.dataset.startTime = Date.now();
+                });
+                div.addEventListener('touchend', (e) => {
+                    const startY = parseFloat(div.dataset.startY || 0);
+                    const endY = e.changedTouches[0].clientY;
+                    const duration = Date.now() - (parseFloat(div.dataset.startTime) || 0);
+                    // Only trigger if not scrolling (movement less than 10px) and quick tap
+                    if (Math.abs(endY - startY) < 10 && duration < 500) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        buyUpgrade(index, 1);
+                    }
+                });
+                upgradesContainer.appendChild(div);
+            });
+
+            updateDisplay();
+            setInterval(autoGenerate, 100);
+            setInterval(saveGame, 5000);
+            loadGame();
+        }
+
+        // Click/Touch handler with multi-touch support
+        const slimeContainer = document.getElementById('slimeContainer');
+        
+        function handleInteraction(e) {
+            e.preventDefault();
+            
+            // Start BGM on first interaction
+            if (!isBGMPlaying) {
+                startBGM();
+            }
+            
+            const rect = slimeContainer.getBoundingClientRect();
+            
+            // Handle both mouse and touch events
+            const interactions = e.touches ? Array.from(e.touches) : [e];
+            
+            interactions.forEach(interaction => {
+                let multiplier = facilityBonus;
+                if (permanentMetalSlime || isMetalSlime) {
+                    // Metal effect = base 5x * (1 + bonusEffect)
+                    // 0 purchases: 5 * 1 = 5x
+                    // 1 purchase: 5 * 11 = 55x
+                    // 2 purchases: 5 * 21 = 105x
+                    multiplier *= metalBaseEffect * (1 + metalBonusEffect);
+                }
+                
+                const gainAmount = Math.floor((clickPower || 1) * multiplier);
+                
+                slimes = (slimes || 0) + gainAmount;
+                playClickSound();
+                
+                const offsetX = interaction.clientX - rect.left;
+                const offsetY = interaction.clientY - rect.top;
+                
+                // Show click effect
+                const effect = document.createElement('div');
+                effect.className = 'click-effect';
+                effect.textContent = `+${gainAmount}`;
+                if (isMetalSlime || permanentMetalSlime) {
+                    effect.style.color = '#C0C0C0';
+                    effect.style.fontSize = '32px';
+                    effect.style.textShadow = '0 0 10px #E8E8E8, 2px 2px 4px rgba(0, 0, 0, 0.8)';
+                }
+                effect.style.left = offsetX + 'px';
+                effect.style.top = offsetY + 'px';
+                slimeContainer.appendChild(effect);
+                setTimeout(() => effect.remove(), 1000);
+
+                // Create particles
+                const particleColor = (isMetalSlime || permanentMetalSlime) ? '#C0C0C0' : '#2196F3';
+                for (let i = 0; i < 5; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.background = particleColor;
+                    if (isMetalSlime || permanentMetalSlime) {
+                        particle.style.boxShadow = '0 0 10px #E8E8E8';
+                    }
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 50 + Math.random() * 50;
+                    particle.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+                    particle.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+                    particle.style.left = offsetX + 'px';
+                    particle.style.top = offsetY + 'px';
+                    slimeContainer.appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            });
+
+            updateDisplay();
+        }
+        
+        // Add both click and touch event listeners
+        slimeContainer.addEventListener('click', handleInteraction);
+        slimeContainer.addEventListener('touchstart', handleInteraction);
+        slimeContainer.addEventListener('touchmove', (e) => e.preventDefault());
+        slimeContainer.addEventListener('touchend', (e) => e.preventDefault());
+
+        // Buy upgrade with visual feedback
+        function buyUpgrade(index, buyCount = 1) {
+            const upgrade = upgrades[index];
+            
+            // 世界を救う has fixed cost (no scaling, single purchase only)
+            if (upgrade.baseCost >= 1e+60) {
+                const cost = upgrade.baseCost;
+                
+                if (slimes >= cost) {
+                    // Reveal if not yet revealed
+                    if (!upgrade.revealed) {
+                        upgrade.revealed = true;
+                    }
+                    
+                    // Purchase
+                    slimes -= cost;
+                    totalConsumedSlimes += cost;
+                    upgrade.count++;
+                    slimesPerSecond += upgrade.sps;
+                    
+                    playUpgradeSound();
+                    saveGame();
+                    updateDisplay();
+                    
+                    // Show ending on first purchase
+                    if (upgrade.count === 1) {
+                        setTimeout(() => {
+                            const endingDiv = document.createElement('div');
+                            endingDiv.id = 'ending-screen';
+                            endingDiv.innerHTML = `
+                                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-family: Arial, sans-serif; text-align: center; padding: 20px; z-index: 10000;">
+                                    <div>
+                                        <h1 style="font-size: clamp(32px, 8vw, 72px); margin-bottom: 30px;">🔵 世界を救った 🔵</h1>
+                                        <div style="font-size: clamp(48px, 10vw, 96px); margin-bottom: 20px;">🙏</div>
+                                        <p style="font-size: clamp(24px, 5vw, 40px); margin-bottom: 30px; font-weight: bold;">助けてくれてありがとう！</p>
+                                        <p style="font-size: clamp(16px, 3vw, 24px); margin-bottom: 40px; opacity: 0.9;">あなたはスライムの英雄です</p>
+                                        <button onclick="document.getElementById('ending-screen').remove()" style="padding: 15px 40px; font-size: clamp(18px, 3vw, 24px); background: white; color: #764ba2; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">戻る</button>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(endingDiv);
+                        }, 300);
+                    }
+                }
+                return;
+            }
+            
+            // Calculate total cost for buying multiple
+            let totalCost = 0;
+            let actualBuyCount = 0;
+            
+            for (let i = 0; i < buyCount; i++) {
+                const cost = Math.floor(upgrade.baseCost * Math.pow(1.15, upgrade.count + i));
+                if (slimes >= totalCost + cost) {
+                    totalCost += cost;
+                    actualBuyCount++;
+                } else {
+                    break;
+                }
+            }
+            
+            if (actualBuyCount > 0 && slimes >= totalCost) {
+                slimes -= totalCost;
+                totalConsumedSlimes += totalCost;
+                upgrade.count += actualBuyCount;
+                
+                // Handle boost type (20% increase to sps and click)
+                if (upgrade.type === 'boost') {
+                    if (!upgrade.revealed) {
+                        upgrade.revealed = true;
+                    }
+                    slimesPerSecond *= 1.2;
+                    clickPower *= 1.2;
+                } 
+                // Handle metal_boost type (increase metal spawn chance)
+                else if (upgrade.type === 'metal_boost') {
+                    if (!upgrade.revealed) {
+                        upgrade.revealed = true;
+                    }
+                    metalSpawnChance += 0.01;
+                }
+                // Handle both type (adds to both sps and click)
+                else if (upgrade.type === 'both') {
+                    if (!upgrade.revealed) {
+                        upgrade.revealed = true;
+                    }
+                    slimesPerSecond += upgrade.sps * actualBuyCount;
+                    clickPower += upgrade.clickBonus * actualBuyCount;
+                }
+                // Handle facility_boost type (全施設の効果+100%)
+                else if (upgrade.type === 'facility_boost') {
+                    if (!upgrade.revealed) {
+                        upgrade.revealed = true;
+                        facilityBonus *= 2; // +100% = x2
+                    }
+                }
+                // Handle metal_effect_boost type (メタル効果+1000% = +10x per purchase)
+                else if (upgrade.type === 'metal_effect_boost') {
+                    if (!upgrade.revealed) {
+                        upgrade.revealed = true;
+                    }
+                    metalBonusEffect += 10; // Each purchase adds +10x to metal effect
+                }
+                else if (upgrade.type === 'auto') {
+                    slimesPerSecond += upgrade.sps * actualBuyCount;
+                } else if (upgrade.type === 'click') {
+                    clickPower += upgrade.clickBonus * actualBuyCount;
+                }
+                
+                playUpgradeSound();
+                updateDisplay();
+            }
+        }
+        
+        function performRebirth(bonusMultiplier) {
+            // Reset everything except rebirth count and bonus
+            slimes = 0;
+            clickPower = 1;
+            slimesPerSecond = 0;
+            permanentMetalSlime = false;
+            metalSpawnChance = 0.1;
+            metalDuration = 10000;
+            isMetalSlime = false;
+            totalConsumedSlimes = 0; // Reset consumed counter
+            
+            // Reset slime appearance
+            const slimeElement = document.querySelector('.slime');
+            slimeElement.style.background = 'linear-gradient(180deg, #5eb3ff 0%, #2196F3 70%, #1976D2 100%)';
+            slimeElement.style.boxShadow = '0 15px 40px rgba(33, 150, 243, 0.5), inset 0 -20px 30px rgba(33, 150, 243, 0.2)';
+            slimeElement.style.animation = 'slimeBounce 2s ease-in-out infinite';
+            
+            // Reset all upgrades except rebirth
+            upgrades.forEach((upgrade, idx) => {
+                if (upgrade.type !== 'rebirth') {
+                    upgrade.count = 0;
+                    upgrade.revealed = false;
+                }
+            });
+            
+            // Increase rebirth count and apply new bonus (multiplicative)
+            rebirthCount++;
+            rebirthBonus *= bonusMultiplier;
+            
+            // Save and update
+            saveGame();
+            updateDisplay();
+            
+            const totalPercent = ((rebirthBonus - 1) * 100).toFixed(0);
+            alert(`転生完了！\n転生回数: ${rebirthCount}\n累積生産ボーナス: +${totalPercent}%`);
+        }
+
+        // Auto generate
+        function autoGenerate() {
+            if (slimesPerSecond > 0) {
+                let multiplier = facilityBonus;
+                if (permanentMetalSlime || isMetalSlime) {
+                    // Metal effect = base 5x * (1 + bonusEffect)
+                    multiplier *= metalBaseEffect * (1 + metalBonusEffect);
+                }
+                slimes = (slimes || 0) + (slimesPerSecond * multiplier) / 10;
+                updateDisplay();
+            }
+        }
+
+        // Rebirth system functions (define before use)
+        function updateRebirthButton() {
+            // This will be implemented after rebirth upgrade is added
+        }
+        
+        // Update display
+        function updateDisplay() {
+            let displayMultiplier = facilityBonus;
+            if (permanentMetalSlime || isMetalSlime) {
+                displayMultiplier *= metalBaseEffect * (1 + metalBonusEffect);
+            }
+            
+            document.getElementById('slimeCount').textContent = 
+                Math.floor(slimes || 0).toLocaleString() + ' スライム';
+            document.getElementById('perSecond').textContent = 
+                '毎秒 ' + ((slimesPerSecond || 0) * displayMultiplier).toFixed(1) + ' スライム';
+
+            upgrades.forEach((upgrade, index) => {
+                // 世界を救う has fixed cost (no scaling)
+                let cost;
+                if (upgrade.baseCost >= 1e+60) {
+                    cost = upgrade.baseCost; // No 1.15x scaling for 世界を救う
+                } else {
+                    cost = Math.floor(upgrade.baseCost * Math.pow(1.15, upgrade.count));
+                }
+                
+                // Display cost in kanji for 世界を救う
+                if (upgrade.baseCost >= 1e+60) {
+                    document.getElementById(`cost-${index}`).textContent = '1無量大数';
+                } else {
+                    document.getElementById(`cost-${index}`).textContent = cost.toLocaleString();
+                }
+                
+                document.getElementById(`count-${index}`).textContent = upgrade.count;
+                
+                // Update name and effect if mystery upgrade was revealed
+                if ((upgrade.type === 'boost' || upgrade.type === 'metal_boost') && upgrade.revealed) {
+                    const nameElement = document.getElementById(`upgrade-${index}`).querySelector('.upgrade-name');
+                    nameElement.textContent = upgrade.name;
+                    const effectElement = document.getElementById(`upgrade-${index}`).querySelector('.upgrade-effect');
+                    if (upgrade.type === 'boost') {
+                        effectElement.textContent = '毎秒&クリック×1.2';
+                    } else if (upgrade.type === 'metal_boost') {
+                        effectElement.textContent = 'メタル確率+1%';
+                    }
+                }
+                
+                // Handle new mystery facility types (including both and auto types like 世界を救う)
+                if ((upgrade.type === 'facility_boost' || upgrade.type === 'metal_effect_boost' || upgrade.type === 'both' || upgrade.type === 'auto') && upgrade.revealed) {
+                    const nameElement = document.getElementById(`upgrade-${index}`).querySelector('.upgrade-name');
+                    nameElement.textContent = upgrade.name;
+                    const effectElement = document.getElementById(`upgrade-${index}`).querySelector('.upgrade-effect');
+                    if (upgrade.type === 'facility_boost') {
+                        effectElement.textContent = '全施設の効果+100%';
+                    } else if (upgrade.type === 'metal_effect_boost') {
+                        effectElement.textContent = 'メタル効果+1000%';
+                    } else if (upgrade.type === 'both') {
+                        effectElement.textContent = `毎秒 +${upgrade.sps.toLocaleString()} クリック +${upgrade.clickBonus.toLocaleString()}`;
+                    } else if (upgrade.type === 'auto' && upgrade.baseCost >= 1e+60) {
+                        // Special display for 世界を救う
+                        effectElement.textContent = 'あなたはスライムの英雄となる';
+                    }
+                }
+                
+                const upgradeElement = document.getElementById(`upgrade-${index}`);
+                
+                if (slimes >= cost) {
+                    upgradeElement.classList.remove('disabled');
+                } else {
+                    upgradeElement.classList.add('disabled');
+                }
+            });
+        }
+
+        // Save game
+        function saveGame() {
+            const saveData = {
+                slimes: slimes,
+                clickPower: clickPower,
+                slimesPerSecond: slimesPerSecond,
+                permanentMetalSlime: permanentMetalSlime,
+                metalSpawnChance: metalSpawnChance,
+                metalDuration: metalDuration,
+                totalConsumedSlimes: totalConsumedSlimes,
+                facilityBonus: facilityBonus,
+                metalBonusEffect: metalBonusEffect,
+                upgrades: upgrades.map(u => ({ count: u.count, revealed: u.revealed }))
+            };
+            localStorage.setItem('slimeClicker', JSON.stringify(saveData));
+        }
+
+        // Load game
+        function loadGame() {
+            const saved = localStorage.getItem('slimeClicker');
+            
+            if (saved) {
+                const data = JSON.parse(saved);
+                
+                slimes = data.slimes || 0;
+                clickPower = data.clickPower || 1;
+                slimesPerSecond = data.slimesPerSecond || 0;
+                permanentMetalSlime = data.permanentMetalSlime || false;
+                metalSpawnChance = data.metalSpawnChance || 0.07;
+                metalDuration = data.metalDuration || 7000;
+                totalConsumedSlimes = data.totalConsumedSlimes || 0;
+                facilityBonus = data.facilityBonus || 1;
+                metalBonusEffect = data.metalBonusEffect || 0;
+                
+                if (data.upgrades) {
+                    data.upgrades.forEach((saved, index) => {
+                        if (upgrades[index]) {
+                            upgrades[index].count = saved.count || 0;
+                            if (saved.revealed !== undefined) {
+                                upgrades[index].revealed = saved.revealed;
+                            }
+                        }
+                    });
+                }
+                
+                // Restore permanent metal slime appearance
+                if (permanentMetalSlime) {
+                    const slimeElement = document.querySelector('.slime');
+                    slimeElement.style.background = 'linear-gradient(180deg, #E8E8E8 0%, #C0C0C0 50%, #A8A8A8 100%)';
+                    slimeElement.style.boxShadow = '0 15px 40px rgba(192, 192, 192, 0.8), inset 0 -20px 30px rgba(169, 169, 169, 0.5), 0 0 50px rgba(211, 211, 211, 0.8)';
+                    slimeElement.style.animation = 'slimeBounce 2s ease-in-out infinite, metalShine 1s ease-in-out infinite';
+                }
+                
+                updateDisplay();
+            }
+        }
+
+        // Start game
+        init();
+    </script>
+</body>
+</html>
